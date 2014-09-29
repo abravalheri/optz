@@ -48,7 +48,7 @@ The `type` field is a integer that can assume the following values:
 * `OPTZ_BOOLEAN`
   - when the option is passed, it represents a `TRUE` value. Does not accept arguments, but modify the variable pointed by the fifth field of the `optz_t` struct. The developer **SHOULD** set the `callback_pointer` field with a reference to a variable of type `int` (or `bool` if available).
 * `OPTZ_NBOOLEAN`
-  - similar to `OPTZ_NBOOLEAN`, but the variable referenced by `callback_pointer` will be changed to `FALSE` when this option is passed.
+  - iNversed BOOLEAN, similar to `OPTZ_NBOOLEAN`, but the variable referenced by `callback_pointer` will be changed to `FALSE` when this option is passed.
 * `OPTZ_STRLIST`
   - argument is interpreted as a list of strings separed by commas. The developer **SHOULD** set the `callback_pointer` field with a reference to a array of `char*` and the `aditional_param` with a reference to a `int` variable. The array will be filled with pointers to each string passed. The `int` variable needs to be initialized with the maximum permitted length of the array and after the parsing will hold the number of positions actually filled.
 * `OPTZ_INTLIST`
@@ -59,8 +59,8 @@ The `type` field is a integer that can assume the following values:
   - when the option is present, a callback function runs as soon as the option is recongnized;
   - a pointer to the function (`int (*callback)(optz*)`) that will be used as callback needs to be specified in the field `callback_pointer`;
   - the developer can pass information to this function using the field `aditional_param`.
-* `OPTZ_DELAYED_CALLBACK`
-  - similar to `OPTZ_CALLBACK`, but waits all the options of other types be parsed to run the callback function.
+* `OPTZ_DCALLBACK`
+  - Delayed CALLBACK, similar to `OPTZ_CALLBACK`, but waits all the options of other types be parsed to run the callback function.
 
 The default behavior of the parser is not consider error the absence of an option. The developer can change this by combining the desired type with `OPTZ_REQUIRED` using the bitwise `&` operator, e.g. `OPTZ_REQUIRED & OPTZ_INTEGER`.
 
@@ -165,7 +165,7 @@ moment_t start;
 optz_t options[] = {
   { "-e" , "--event <name>"             , "Name of the event."                , OPTZ_REQUIRED                 , event },
   { "-s" , "--start <YYYY/mm/dd-HH:MM>" , "Moment when the event will start." , OPTZ_REQUIRED & OPTZ_CALLBACK , parse_moment_cb , &start },
-  { "-x" , "--delete"                   , "Delete this event instead of Add." , OPTZ_DELAYED_CALLBACK         , delete_event_cb , event }
+  { "-x" , "--delete"                   , "Delete this event instead of Add." , OPTZ_DCALLBACK         , delete_event_cb , event }
   /* This callback needs to wait the \"--event\" option be parsed, in order to have acces to the right event name */
 };
 ```
