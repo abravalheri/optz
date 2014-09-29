@@ -14,24 +14,24 @@
    In a real program this representation should be persisted in the disk, but
    I will omit this code, since it's an example.
  */
-#define MAX_CONTACTS 200
+#define MAX_LENGTH_NAME 200
 #define MAX_NUMBERS_PER_CONTACT 12
-#define NUMBER_LENGTH 9
+#define NUMBER_LENGTH 10
 
 typedef struct {
-  char name[MAX_CONTACTS];
+  char name[MAX_LENGTH_NAME];
   char number[MAX_NUMBERS_PER_CONTACT][NUMBER_LENGTH];
-} Phonebook;
+} Contact;
 
 /*!
    In order to work properly, the `phonebook` program will be able to search the
    entries by name using the `find_name` function.
  */
-int find_name(Phonebook* phonebook, char* name) {
+int find_name(Contact* phonebook, char* name) {
   int i;
 
-  for (i = 0; phonebook[i].name != NULL; i++)
-    if (strcmp(phonebook.name, name) == 0) return i;
+  for (i = 0; phonebook[i].name[0] != 0; i++)
+    if (strcmp(phonebook[i].name, name) == 0) return i;
 
   return -1;
 }
@@ -41,37 +41,54 @@ int find_name(Phonebook* phonebook, char* name) {
    using the function `add_number`. If the name doesn't exist in the phonebook,
    the same function will automatically create an entry.
  */
-int add_number(Phonebook* phonebook, char* name, char* number) {
+int add_number(Contact* phonebook, char* name, char* number) {
   int i, j;
 
-  for (i = 0; phonebook[i].name != NULL; i++)
-    if (strcmp(phonebook.name, name) == 0) break;
+  for (i = 0; phonebook[i].name[0] != 0; i++) {
+    if (strcmp(phonebook[i].name, name) == 0) break;
+  }
 
-  /* As one entry will be added to the array,
-     the new end should be marked to ensure
-     that infinity loops will not occur    */
-  phonebook[i+1].name = NULL;
-
-  if (phonebook[i].name == NULL)
+  if (phonebook[i].name[0] == 0) {
     strcpy(phonebook[i].name, name);
+    /* As one entry may be added to the end of array,
+       the new end should be marked to ensure
+       that infinity loops will not occur    */
+    phonebook[i+1].name[0] = 0;
+  }
 
-  for (i = 0; phonebook[i].number[j] != NULL; i++)
+  for (j = 0; phonebook[i].number[j][0] != 0; j++) {
     if (strcmp(phonebook[i].number[j], number) == 0) break;
+  }
 
-  if (phonebook[i].number[j] == NULL)
+  if (phonebook[i].number[j][0] == 0) {
     strcpy(phonebook[i].number[j], number);
+  }
 
   return i;
 }
 
+void print_contact(Contact* contact, int amount_of_phones) {
+  int i;
+
+  if (amount_of_phones < 0) {
+    for (amount_of_phones = 0; contact->number[amount_of_phones][0] != 0; amount_of_phones++);
+  }
+
+  printf("%s:\n", contact->name);
+
+  for (i = 0; i < amount_of_phones; i++) {
+    printf("\t- %s\n", contact->number[i]);
+  }
+}
+
 int main(int argc, char** argv) {
   /*! Before the program start it will populate the memory with some fixtures. */
-  Phonebook phonebook[50] = {
-    /* The NULL pointer will be used to mark the end of arrays */
-    { "John" , { "9999-9999", "3333-3333", NULL } },
-    { "Maria", { "5555-5555", NULL } },
-    { "James", { "4444-4444", NULL } },
-    { NULL }
+  Contact phonebook[50] = {
+    /* The empty string will be used to mark the end of arrays */
+    { "John" , { "9999-9999", "6666-666", "3333-3333" "\0" } },
+    { "Maria", { "5555-5555", "\0" } },
+    { "James", { "4444-4444", "\0" } },
+    { "\0" }
   };
 
   /*!
@@ -100,38 +117,61 @@ int main(int argc, char** argv) {
                                 optz parsing eventually will hold the number
                                 passed by the user in the terminal.           */
 
+  int i;
+
+  printf("Before:\n");
+  for (i = 0; phonebook[i].name[0] != 0; i++) {
+    print_contact(&phonebook[i], -1);
+  }
+
+  printf("Command: add Juan\n");
+  add_number(phonebook, "Juan", "XXXX-XXXX");
+
+  printf("After:\n");
+  for (i = 0; phonebook[i].name[0] != 0; i++) {
+    print_contact(&phonebook[i], -1);
+  }
+
+#if 0
   optz_t options[] = {
-    { "-v", "--version", "Output program version",
-      OPTZ_CALLBACK , &optz_version_cb, &version },
-    /*! The first field in the struct represents the short-name option style
-        and the second the long-name. The third field is the description (that
-        will be printed out in the help), the fourth is the option type. The last
-        two fields are related to the option callback. For options of type
-        OPTZ_CALLBACK, the fifth field is a pointer to a function with signature
-        `int func(optz* option)`, and the sixth is a aditional parameter passed
-        thougth a `void*` pointer. */
-    { "-h", "--help", "Display the help message.",
-      OPTZ_CALLBACK , &optz_help_cb },
-    { "-c", "--contact <name>", "Name of the person to be added or searched .\n"
-                                "If this option is present, the argument is mandatory.",
-      OPTZ_STRING, &contact },
-    /*! The angle brackets mark the argument as madatory for the option.
-        Once the user can retrieve a list for all the entries in the phonebook
-        just by omitting this option, the option itself is not required.*/
-    { "-a" , "--add <P1,...>"   , "Comma separeted list of phone numbers to be added.\n"
-                                  "If this option is present, the argument is mandatory."   ,
-      OPTZ_STRLIST, &numbers, &len },
+    { "-v" , "--version",
+      "Output program version",
+       OPTZ_CALLBACK , &optz_version_cb, &version },
+      /*! The first field in the struct represents the short-name option style
+          and the second the long-name. The third field is the description (that
+          will be printed out in the help), the fourth is the option type. The last
+          two fields are related to the option callback. For options of type
+          OPTZ_CALLBACK, the fifth field is a pointer to a function with signature
+          `int func(optz* option)`, and the sixth is a aditional parameter passed
+          thougth a `void*` pointer. */
+    { "-h" , "--help",
+      "Display the help message.",
+       OPTZ_CALLBACK , &optz_help_cb, options },
+    { "-c" , "--contact <name>",
+      "Name of the contact.\n"
+      "When absent all the contacts will be considered.",
+       OPTZ_STRING  , &contact },
+      /*! The angle brackets mark the argument as madatory for the option.
+          Once the user can retrieve a list for all the entries in the phonebook
+          just by omitting this option, the option itself is not required.*/
+    { "-a" , "--add <P1,...>",
+      "Comma separeted list of phone numbers to be added.",
+       OPTZ_STRLIST  , &numbers, &len },
       /*! For options of type OPTZ_***LIST, the fifth field is a pointer to the
           empty array where the list will be stored, and the sixth is reference
           to a variable that holds the maximum number of elements for this array.
           After ther parsing this value will be modified to the actual number
           of entries. */
-    { "-s" , "--show [N]"       , "Display the N first phone numbers for the contact.\n"
-                                  "The N parameter is optional and the default value is 1." ,
-      OPTZ_INTEGER  , &show },
-    /*! The squared brackets represent a optional argument for the option. It's
-        important to start the sixth paramenter with a default value. */
+    { "-s" , "--show [N]",
+      "Display the N first phone numbers for the contact.\n"
+      "The N parameter is optional and the default value is 1.",
+       OPTZ_INTEGER  , &show }
+      /*! The squared brackets represent a optional argument for the option.
+          It's important to start the sixth paramenter with a default value. */
   };
 
   optz_parse(optz, /* size of options array */ 5, argc, argv, error_cb, &error_param);
+#endif
+
+  return 0;
 }
