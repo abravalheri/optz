@@ -86,11 +86,23 @@ char* numbers[12];
 int show = 1;
 
 optz_t options[] = {
-  { "-v" , "--version", "Output program version", OPTZ_CALLBACK , &optz_version_cb, &version },
-  { "-h" , "--help", "Display the help message.", OPTZ_CALLBACK , &optz_help_cb },
-  { "-c" , "--contact <name>", "Name of the contact. When absent all the contacts will be considered.",OPTZ_STRING   , &contact },
-  { "-a" , "--add <P1,...>", "Comma separeted list of phone numbers to be added.", OPTZ_STRLIST, &numbers, &len },
-  { "-s" , "--show [N]" , "Display the N first phone numbers for the contact.\nThe N parameter is optional and the default value is 1.", OPTZ_INTEGER, &show },
+  { "-v" , "--version",
+    "Output program version",
+     OPTZ_CALLBACK , &optz_version_cb, &version },
+  { "-h" , "--help",
+    "Display the help message.",
+     OPTZ_CALLBACK , &optz_help_cb, options },
+  { "-c" , "--contact <name>",
+    "Name of the contact.\n"
+    "When absent all the contacts will be considered.",
+     OPTZ_STRING  , &contact },
+  { "-a" , "--add <P1,...>",
+    "Comma separeted list of phone numbers to be added.",
+     OPTZ_STRLIST  , &numbers, &len },
+  { "-s" , "--show [N]",
+    "Display the N first phone numbers for the contact.\n"
+    "The N parameter is optional and the default value is 1.",
+     OPTZ_INTEGER  , &show }
 };
 
 ```
@@ -151,8 +163,9 @@ char* event;
 moment_t start;
 
 optz_t options[] = {
-  { "-e", "--event <name>" , "Name of the event.", OPTZ_REQUIRED, event },
-  { "-s", "--start <YYYY/mm/dd-HH:MM>", "Moment when the event will start.", OPTZ_REQUIRED & OPTZ_CALLBACK, parse_moment_cb, &start },
-  { "-x", "--delete", "Instead of add, delete event", OPTZ_DELAYED_CALLBACK, delete_event_cb, event } /* This callback needs to wait the \"--event\" option be parsed, in order to have acces to the right event name */
+  { "-e" , "--event <name>"             , "Name of the event."                , OPTZ_REQUIRED                 , event },
+  { "-s" , "--start <YYYY/mm/dd-HH:MM>" , "Moment when the event will start." , OPTZ_REQUIRED & OPTZ_CALLBACK , parse_moment_cb , &start },
+  { "-x" , "--delete"                   , "Delete this event instead of Add." , OPTZ_DELAYED_CALLBACK         , delete_event_cb , event }
+  /* This callback needs to wait the \"--event\" option be parsed, in order to have acces to the right event name */
 };
 ```
