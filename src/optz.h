@@ -1,13 +1,15 @@
 #ifndef __OPTZ_H__
 #define __OPTZ_H__
 
-#include <error.h>
+#define OPTZ_ERRNO_BASE 200
 
-#ifndef EINVAL
-#define EINVAL 22
-#endif
-
-#define OPTZ_MALFORMED_OPTION EINVAL
+#define OPTZ_OK 0
+enum {
+  OPTZ_UNKNOWN_ERROR = OPTZ_ERRNO_BASE,
+  OPTZ_MALFORMED,
+  OPTZ_REQUIRED_OPT,
+  OPTZ_REQUIRED_ARG,
+};
 
 typedef struct {
   char* short_form;
@@ -17,6 +19,11 @@ typedef struct {
   void* callback_pointer;
   void* aditional_param;
   char* raw_arg; /* Read-only */
+
+  /* Private */
+  char* _name;
+  int   _name_len;
+  int   _arg_type;
 } optz_t;
 
 /* Option type modifiers */
