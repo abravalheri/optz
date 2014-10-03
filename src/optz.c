@@ -1,6 +1,11 @@
 #include "optz.h"
 #include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
+
+int optz_default_err_cb(optz* option, int status) {
+  return status;
+}
 
 /**
  * Mark the given position in the argv array as already consumed in the parsing
@@ -58,6 +63,29 @@ char* optz_next_arg(int* index, char** argv) {
   return argv[index];
 };
 
+char* optz_find_arg(optz_t* option, int* index, char** argv) {
+  int i, l;
+  char* arg = argv[*index];
+
+  /*! Try to find the argument inside the same argv element */
+  for (i = 0, l = strlen(arg); i < l; i++) {
+    if (arg[i] == '=') {
+      arg[i] = 0;
+      return &(arg[i+1]);
+    }
+  }
+
+  /*! Nothing found yet... */
+  i = *index + 1;
+  /*!
+    First check if next argv element is an option, avoiding to take it
+  */
+  if (arg[i][0] == '-') return NULL;
+
+  *index = i;
+  return optz_take_arg(i, argv);
+}
+
 /**
  * Indicates if the given argument corresponds to the given option
  *
@@ -74,6 +102,8 @@ char* optz_next_arg(int* index, char** argv) {
  *          is given ).
  */
 static int optz_match(optz_t* option, char* arg) {
+  int type;
+
   /*! Options should start with a '-' character */
   if (arg[0] != '-') return -1;
   /*! If there is just one '-' character, it must be a short option */
@@ -94,7 +124,8 @@ static int optz_match(optz_t* option, char* arg) {
   */
   if (strncmp(&(arg[2]), &(option->_name), option->_name_len) == 0) return 1;
 
-  if (option->type == OPTZ_BOOLEAN || option->type == OPTZ_NBOOLEAN) {
+  type = option->type & OPTZ_TMOD_NMASK;
+  if (type == OPTZ_BOOLEAN || type == OPTZ_NBOOLEAN) {
     /*! "Oposite option" analysis  */
     if (strncmp(&(arg[2]),  "no", 2) == 0
       && strncmp(&(arg[4]), &(option->_name), option->_name_len) == 0)
@@ -144,21 +175,80 @@ static int optz_parse_long_name(optz_t* option, int* length, char** name, int* a
   return OPTZ_OK;
 }
 
-int optz_parse(int optc, optz_t* optv, int argc, char** argv) {
-  int i, j, status;
-  char* arg;
-  optz_t* opt;
+int optz_parse_option(optz_t* opt, int argc, char** argv) {
+  int j, status, type;
+  char* arg, self;
+
+  status = optz_parse_long_name(opt, &(opt->_name_len), &(opt->_name), &(opt->_arg_type));
+  if (status != OPTZ_OK) return status;
+
+  for (j = 0; j < argc;) {
+    arg = optz_next_arg(&j, argv);
+    status = optz_match(opt, arg);
+    if (status) >= 0 {
+      opt->raw_arg = optz_find_arg(opt, &j, argv);
+      self = optz_take_arg(j, argv);
+
+      if (opt->raw_arg == NULL) {
+        if (opt->_arg_type == 1) return OPTZ_REQUIRED_ARG;
+        else opt->raw_arg = self;
+      }
+
+      type = opt->type & OPTZ_TMOD_NMASK;
+      switch (type) {
+        case OPTZ_BOOLEAN:
+          *((int*) opt->callback_pointer) = status == 0 ? 0 : 1; return OPTZ_OK;
+        case OPTZ_NBOOLEAN:
+          *((int*) opt->callback_pointer) = status == 0 ? 1 : 0; return OPTZ_OK;
+        case OPTZ_INTEGER:
+          *((int*) opt->callback_pointer) = atoi(arg); return OPTZ_OK;
+        case OPTZ_FLOAT:
+          *((float*) opt->callback_pointer) = atof(arg); return OPTZ_OK;
+        case OPTZ_STRING:
+          *((char**) opt->callback_pointer) = opt->raw_arg; return OPTZ_OK;
+        case OPTZ_CALLBACK:
+          return ((optz_cb_t) opt->callback_pointer)(opt);
+        case OPTZ_DCALLBACK:
+          return OPTZ_OK; // anything to do now
+      }
+
+      return OPTZ_UNKNOWN_ERROR;
+    }
+  }
+}
+
+int optz_parse(int optc, optz_t* optv, int argc, char** argv, optz_err_cb_t err_cb) {
+  int i, status;
+
+  if (err_cb == NULL) err_cb = optz_default_err_cb;
 
   for (i = 0; i < optc; i++) {
-    opt = &(optv[i]);
-    status = optz_parse_long_name(opt, &(opt->_name_len), &(opt->_name), &(opt->_arg_type));
-    if (status != OPTZ_OK) return status
-    for (j = 0; j < argc;) {
-      arg = optz_next_arg(&j, argv);
-      status = optz_match(opt, arg);
-      if (status) >= 0 {
-        
+    optv[i]->raw_arg = NULL;
+    status = optz_parse_option(&(optv[i]), argc, argv);
+    /*!
+      If something goes wrong, there is one chance to clean things up,
+      but if the error callback cannot fix it, the parser is aborted
+    */
+    if (status != OPTZ_OK) status = err_cb(&optv[i], status);
+    if (status != OPTZ_OK) return status;
+  }
+
+  for (i = 0; i < optc; i++) {
+    /*! Check if the option is required, but was not given */
+    if (optv[i]->raw_arg == NULL) {
+      if (optv[i]->type & OPTZ_REQUIRED) {
+        status = err_cb(&optv[i], OPTZ_REQUIRED_OPT);
+        if (status != OPTZ_OK) return status;
+      }
+    } else {
+      /*! Delayed callbacks execution after argument parsing */
+      if (optv[i]->type & OPTZ_DCALLBACK) {
+        status = ((optz_cb_t) opt->callback_pointer)(optv[i]);
+        if (status != OPTZ_OK) status = err_cb(&optv[i], status);
+        if (status != OPTZ_OK) return status;
       }
     }
   }
+
+  return OPTZ_OK;
 }

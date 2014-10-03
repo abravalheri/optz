@@ -8,8 +8,11 @@ enum {
   OPTZ_UNKNOWN_ERROR = OPTZ_ERRNO_BASE,
   OPTZ_MALFORMED,
   OPTZ_REQUIRED_OPT,
-  OPTZ_REQUIRED_ARG,
+  OPTZ_REQUIRED_ARG
 };
+
+typedef int (*optz_cb_t)(optz* option);
+typedef int (*optz_err_cb_t)(optz* option, int status);
 
 typedef struct {
   char* short_form;
@@ -28,7 +31,8 @@ typedef struct {
 
 /* Option type modifiers */
 #define OPTZ_TMOD_NBITS 2
-#define OPTZ_TMOD_MASK 0xFFFFFFFC
+#define OPTZ_TMOD_MASK  0x00000003
+#define OPTZ_TMOD_NMASK 0xFFFFFFFC
 enum {
   OPTZ_OPTIONAL = 0,
   OPTZ_REQUIRED
@@ -37,19 +41,20 @@ enum {
 /* Raw option types */
 enum {
   /* The 2 first bits are reserved to modifiers */
-  OPTZ_STRING = (1 << OPTZ_TMOD_NBITS),
-  OPTZ_INTEGER,
-  OPTZ_FLOAT,
-  OPTZ_BOOLEAN,
-  OPTZ_NBOOLEAN,
-  OPTZ_CALLBACK,
-  OPTZ_DCALLBACK,
-  OPTZ_STRLIST,
-  OPTZ_INTLIST,
-  OPTZ_FLTLIST
+  OPTZ_STRING    =  1 << OPTZ_TMOD_NBITS,
+  OPTZ_INTEGER   =  2 << OPTZ_TMOD_NBITS,
+  OPTZ_FLOAT     =  3 << OPTZ_TMOD_NBITS,
+  OPTZ_BOOLEAN   =  4 << OPTZ_TMOD_NBITS,
+  OPTZ_NBOOLEAN  =  5 << OPTZ_TMOD_NBITS,
+  OPTZ_CALLBACK  =  6 << OPTZ_TMOD_NBITS,
+  OPTZ_DCALLBACK =  7 << OPTZ_TMOD_NBITS,
+  OPTZ_STRLIST   =  8 << OPTZ_TMOD_NBITS,
+  OPTZ_INTLIST   =  9 << OPTZ_TMOD_NBITS,
+  OPTZ_FLTLIST   = 10 << OPTZ_TMOD_NBITS
 };
 
+int optz_default_err_cb(optz* option, int status);
 char* optz_take_arg(int i, char** argv);
 char* optz_next_arg(int* i, char** argv);
-
+int optz_parse(int optc, optz_t* optv, int argc, char** argv, optz_err_cb_t err_cb);
 #endif
